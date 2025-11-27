@@ -1,5 +1,8 @@
 import { useState } from 'react'
+import { Routes, Route } from 'react-router-dom'
 import axios from 'axios'
+import Pin from './Pin'
+import Admin from './Admin'
 import './App.css'
 
 type ExportStatus = 'idle' | 'exporting' | 'success' | 'error'
@@ -21,28 +24,36 @@ type DeckResponse = {
   url: string
 }
 
-function App() {
+function DecklistExporter() {
   const [decklistCode, setDecklistCode] = useState('')
   const [trainerName, setTrainerName] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [status, setStatus] = useState<ExportStatus>('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [deckData, setDeckData] = useState<DeckResponse | null>(null)
 
-  const exportDecklist = async (name: string, code: string) => {
-    return await axios.post('/api/decks', { name, code })
+  const exportDecklist = async (name: string, code: string, phone: string) => {
+    return await axios.post('/api/decks', { name, code, phone })
   }
 
   const handleReset = () => {
     setDecklistCode('')
     setTrainerName('')
+    setPhoneNumber('')
     setStatus('idle')
     setErrorMessage('')
     setDeckData(null)
   }
 
+  const validatePhoneNumber = (phone: string): boolean => {
+    // Must be numbers only, start with 08, and longer than 6 digits
+    const phoneRegex = /^08\d+$/
+    return phoneRegex.test(phone) && phone.length > 6
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!trainerName.trim()) {
       setErrorMessage('Please enter a trainer\'s name')
       setStatus('error')
@@ -55,11 +66,23 @@ function App() {
       return
     }
 
+    if (!phoneNumber.trim()) {
+      setErrorMessage('Please enter a phone number')
+      setStatus('error')
+      return
+    }
+
+    if (!validatePhoneNumber(phoneNumber.trim())) {
+      setErrorMessage('Phone number must start with 08, contain only numbers, and be longer than 6 digits')
+      setStatus('error')
+      return
+    }
+
     setStatus('exporting')
     setErrorMessage('')
 
     try {
-      const response = await exportDecklist(trainerName.trim(), decklistCode.trim())
+      const response = await exportDecklist(trainerName.trim(), decklistCode.trim(), phoneNumber.trim())
       setDeckData(response.data)
       setStatus('success')
     } catch (error) {
@@ -77,7 +100,7 @@ function App() {
     <div className="app">
       <img src="/banner.jpeg" alt="Banner" className="banner" />
       <h1>Decklist Exporter</h1>
-      
+
       {status === 'success' && deckData ? (
         <div className="card">
           <div className="success-header">
@@ -90,7 +113,7 @@ function App() {
               <strong>Trainer:</strong> {deckData.name}
             </div>
           </div>
-          
+
           <div className="cards-section">
             <h3>Cards</h3>
             <div className="cards-table">
@@ -112,9 +135,9 @@ function App() {
               </table>
             </div>
           </div>
-          
+
           <div className="success-actions">
-            <button 
+            <button
               onClick={handleReset}
               className="submit-button"
             >
@@ -137,6 +160,20 @@ function App() {
                 className="input-field"
               />
             </div>
+
+            <div className="form-group">
+              <label htmlFor="phone-number">Phone Number</label>
+              <input
+                id="phone-number"
+                type="text"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="08XXXXXXXX"
+                disabled={status === 'exporting'}
+                className="input-field"
+              />
+            </div>
+
             <div className="form-group">
               <label htmlFor="decklist-code">Decklist Code</label>
               <input
@@ -149,8 +186,9 @@ function App() {
                 className="input-field"
               />
             </div>
-            <button 
-              type="submit" 
+
+            <button
+              type="submit"
               disabled={status === 'exporting'}
               className="submit-button"
             >
@@ -175,6 +213,17 @@ function App() {
         </>
       )}
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<DecklistExporter />} />
+      <Route path="/staff" element={<DecklistExporter />} />
+      <Route path="/admin" element={<Admin />} />
+      <Route path="/pin" element={<Pin />} />
+    </Routes>
   )
 }
 
